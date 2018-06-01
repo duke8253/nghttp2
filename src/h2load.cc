@@ -45,6 +45,7 @@
 #include <thread>
 #include <future>
 #include <random>
+#include <cmath>
 
 #include <openssl/err.h>
 
@@ -1398,6 +1399,41 @@ double within_sd(const std::vector<double> &samples, double mean, double sd) {
 } // namespace
 
 namespace {
+void percentiles(std::map<double, double> &per, std::vector<double> vec) {
+  if (vec.size() == 0) {
+    return;
+  }
+
+  std::sort(vec.begin(), vec.end());
+
+  size_t size = vec.size();
+  int idx = ceil(size * 0.5) - 1;
+  per[50.0] = vec[idx];
+
+  idx = ceil(size * 0.75) - 1;
+  per[75.0] = vec[idx];
+
+  idx = ceil(size * 0.90) - 1;
+  per[90.0] = vec[idx];
+
+  idx = ceil(size * 0.99) - 1;
+  per[99.0] = vec[idx];
+
+  idx = ceil(size * 0.999) - 1;
+  per[99.9] = vec[idx];
+
+  idx = ceil(size * 0.9999) - 1;
+  per[99.99] = vec[idx];
+
+  idx = ceil(size * 0.99999) - 1;
+  per[99.999] = vec[idx];
+
+  idx = size - 1;
+  per[100.0] = vec[idx];
+}
+}
+
+namespace {
 // Computes statistics using |samples|. The min, max, mean, sd, and
 // percentage of number of samples within mean +/- sd are computed.
 // If |sampling| is true, this computes sample variance.  Otherwise,
@@ -1429,6 +1465,7 @@ SDStat compute_time_stat(const std::vector<double> &samples,
   res.mean = sum / n;
   res.sd = sqrt(q / (sampling && n > 1 ? n - 1 : n));
   res.within_sd = within_sd(samples, res.mean, res.sd);
+  percentiles(res.percentiles, samples);
 
   return res;
 }
@@ -2722,7 +2759,18 @@ time for request: )" << std::setw(10)
             << "\nreq/s           : " << std::setw(10) << ts.rps.min << "  "
             << std::setw(10) << ts.rps.max << "  " << std::setw(10)
             << ts.rps.mean << "  " << std::setw(10) << ts.rps.sd << std::setw(9)
-            << util::dtos(ts.rps.within_sd) << "%" << std::endl;
+            << util::dtos(ts.rps.within_sd) << "%"
+            << "\n\ntime for request (percentiles):"
+            << "\n  50.000%: " << util::format_duration(ts.request.percentiles[50.0])
+            << "\n  75.000%: " << util::format_duration(ts.request.percentiles[75.0])
+            << "\n  90.000%: " << util::format_duration(ts.request.percentiles[90.0])
+            << "\n  99.000%: " << util::format_duration(ts.request.percentiles[99.0])
+            << "\n  99.900%: " << util::format_duration(ts.request.percentiles[99.9])
+            << "\n  99.990%: " << util::format_duration(ts.request.percentiles[99.99])
+            << "\n  99.999%: " << util::format_duration(ts.request.percentiles[99.999])
+            << "\n 100.000%: " << util::format_duration(ts.request.percentiles[100.0])
+            << "\n"
+            << std::endl;
 
   SSL_CTX_free(ssl_ctx);
 

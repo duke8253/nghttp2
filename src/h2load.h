@@ -157,6 +157,8 @@ struct SDStat {
   double min, max, mean, sd;
   // percentage of samples inside mean -/+ sd
   double within_sd;
+  // percentiles: 50%, 75%, 90%, 99%, 99.9%, 99.99%, 99.999%, 100%
+  std::map<double, double> percentiles;
 };
 
 struct SDStats {
